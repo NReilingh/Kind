@@ -2,7 +2,7 @@
 type App.Quadrado.Cooldown {
   new(
     dash: F64
-    shoots: F64
+    //shoots: Map<
   )
 }
 
@@ -19,6 +19,3 @@ App.Quadrado.Cooldown.dash_update(creature: App.Quadrado.Creature): App.Quadrado
 
     let cooldown = cooldown@dash <- val
     creature@status@cooldown <- cooldown
-  
-
-//App.Quadrado.Cooldown.shoot_update(cre

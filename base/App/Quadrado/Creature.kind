@@ -4,6 +4,8 @@ type App.Quadrado.Creature {
     pos: App.Quadrado.Coord
     physics: App.Quadrado.Physics
     movement: App.Quadrado.Movement
+    //attacks: App.Quadrado.Attack
+    //cards: App.Quadrado.Cards
   )
 }
     //status

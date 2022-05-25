@@ -6,6 +6,7 @@ App.Quadrado.State: App.State
 type App.Quadrado.State.Local { 
   new(
     creature: App.Quadrado.Creature
+    minions: List<App.Quadrado.Minion>
   )
 }
 

@@ -1,0 +1,13 @@
+type App.Quadrado.Minion { 
+  new(
+    hp: U32
+    pos: App.Quadrado.Coord
+    height: U32
+    img: VoxBox
+  )
+}
+
+
+
+App.Quadrado.create_minion(hp: U32, pos: App.Quadrado.Coord, img: VoxBox): App.Quadrado.Minion
+  App.Quadrado.Minion.new(hp, pos, img)

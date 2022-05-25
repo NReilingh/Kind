@@ -60,7 +60,6 @@ App.Quadrado.Physics.Dash.update(dash: App.Quadrado.Physics.Dash): Maybe<App.Qua
         succ:
           let new_distance  = some(max_dis.value - 1)
           let log_distance = max_dis.value - 1
-          log(Nat.show(log_distance))
           some(App.Quadrado.Physics.Dash.new(speed, new_distance))
       }
   }
@@ -106,14 +105,19 @@ App.Quadrado.Physics.update_position(creature: App.Quadrado.Creature): App.Quadr
       let speed = dash@speed
       dir(x, speed)
 
-  let y = 
-    without on_air: y
+  let {y, creature} = 
+    without on_air: {y, creature}
+    log("y: "| F64.show(y))
     let rising   = on_air@rising
-    let y = (y + (on_air@speed * -1))
-    if F64.gtn(y, 0) && Maybe.is_none!(rising) then 
-      0
+    let new_y = (y + (on_air@speed * -1))
+    //log("new_y: "| F64.show(y))
+    let mod_old_y = (y % 100) >? 90
+    let mod_new_y = (new_y % 100) <? 10
+    if mod_old_y && mod_new_y && Maybe.is_none!(rising) then 
+      let creature = creature@physics@on_air <- none
+      {new_y - (new_y % 100), creature}
     else
-      y
+      {new_y, creature}
 
   let new_pos = Pair.new<F64, F64>(x, y)
   creature@pos <- new_pos
@@ -137,8 +141,13 @@ App.Quadrado.Physics.update(local: App.Quadrado.State.Local): App.Quadrado.State
     let dash = physics@dashing
     without dash: local
     let new_dash    = App.Quadrado.Physics.Dash.update(dash)
-    let new_air     = App.Quadrado.Physics.Air.new(0.0, none)
-    let new_physics = App.Quadrado.Physics.new(some(new_air), new_dash)
+    let new_air     = 
+      if Maybe.is_none!(physics@on_air) then
+        none
+      else
+        some(App.Quadrado.Physics.Air.new(0.0, none))
+
+    let new_physics = App.Quadrado.Physics.new(new_air, new_dash)
     //Sets dash cooldown to the creature
     let creature    = App.Quadrado.Status.dash_cooldown(0.4, creature)
     let creature    = creature@physics <- new_physics

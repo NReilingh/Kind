@@ -14,6 +14,7 @@ App.Quadrado.draw.height_constant: U32
 App.Quadrado.draw.canvas(local: App.Quadrado.State.Local, global: Unit, img: VoxBox): VoxBox
   let {x, y} = local@creature@pos
   let {x, y} = Pair.new<U32, U32>(F64.to_u32(x),F64.to_u32(y))
+  let minions = local@minions
   let looking = local@creature@movement@looking
   //let nave = App.Quadrado.img.boneco
   let nave = App.KL.Game.Hero.Fields.Assets.minion_img
@@ -23,15 +24,46 @@ App.Quadrado.draw.canvas(local: App.Quadrado.State.Local, global: Unit, img: Vox
       VoxBox.Draw.image
     else
       VoxBox.Draw.image_reverse_x
-  let img = func((x + center_x) -128 , (y + center_y) -132, 1#32 , nave , img)
-  App.Quadrado.draw.lines(0, 44, 1, local, global, img)
+  let img = func(center_x -128 , center_y -132, 1#32 , nave , img)
+
+  for minion in minions with img:
+    let {minion_x, minion_y} = minion@pos
+    let {minion_x, minion_y} = Pair.new<U32, U32>(F64.to_u32(minion_x),F64.to_u32(minion_y))
+    let {x,y} = {((minion_x - x) + center_x) - 128, (((minion_y - y) + center_y) - minion@height) -128}
+  
+    let f = 
+      if U32.gtn(x, minion_x) then
+        VoxBox.Draw.image
+      else
+        VoxBox.Draw.image_reverse_x
+
+    f(x, y, 1#32, minion@img, img)
+
+  App.Quadrado.draw.lines(0, 100, 1, local, global, img)
 
 
-//VoxBox.Draw.image(x: U32, y: U32, z: U32, src: VoxBox, img: VoxBox): VoxBox
 
 App.Quadrado.draw.lines(x: U32, y: U32, z:U32, local: App.Quadrado.State.Local, global: Unit, img: VoxBox): VoxBox
-  for i: U32 from 0 to 3 with img:
-    let platform = i + 1
-    VoxBox.Draw.rect(x, y*platform, z, App.Quadrado.draw.width_constant, 1, Col32.new(0,0,0,255), img)
+  let plataforms = []
+  for i: U32 from 0 to 6 with plataforms:
+    let platform = i
+    List.cons<U32>(1500 - y*platform, plataforms)
+
+
+  for y in plataforms with img:
+    let creature_y = local@creature@pos@snd
+    let creature_y = F64.to_u32(creature_y)
+    let {center_x, center_y} = {App.Quadrado.draw.width_constant/2, App.Quadrado.draw.height_constant/2}
+    let draw_y = (y - creature_y) + center_y
+    VoxBox.Draw.rect(x, draw_y, z, App.Quadrado.draw.width_constant, 1, Col32.new(0,0,0,255), img)
+
   img
+
   
+
+
+
+//Plataformas:
+  //  6 plataformas ao todo
+  //245 pixels entre elas (x, 0) até (x, 1250)
+  //  5 pixels de grossura cada 

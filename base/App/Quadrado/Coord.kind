@@ -4,5 +4,6 @@ App.Quadrado.Coord: Type
 
 
 //Verifies if the creature is on the ground
-App.Quadrado.Coord.is_on_ground(pos: App.Quadrado.Coord): Bool
-  F64.eql(pos@snd, 0) 
+//App.Quadrado.Coord.is_on_ground(pos: App.Quadrado.Coord): Bool
+  //F64.eql(pos@snd, 0) 
+

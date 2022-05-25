@@ -92,7 +92,6 @@ App.Quadrado.when.dash(local: App.Quadrado.State.Local): App.Quadrado.State.Loca
   let physics  = creature@physics
   let dash     = physics@dashing
   let dash_cd  = creature@status@cooldown@dash
-  log(F64.show(dash_cd))
   case dash { 
     none:
       if F64.gtn(dash_cd, 0) then
@@ -130,23 +129,27 @@ App.Quadrado.when.jump(local: App.Quadrado.State.Local, w_pressed: Bool): App.Qu
   let jumps = status@jumps
   let physics = creature@physics
   let on_air = physics@on_air
-  case jumps {
-    zero: 
-      local
-    succ: 
-      if w_pressed then
-        let new_physics = physics@on_air   <- some(App.Quadrado.Physics.Air.start)
-        let creature    = creature@physics <- new_physics
-        let local       = local@creature   <- creature
+  let dash = physics@dashing
+  if Maybe.is_none!(dash) then
+    case jumps {
+      zero: 
         local
-      else
-        let on_air       = physics@on_air
-        without on_air:  local
-          let new_on_air = on_air@rising    <- none
-          let physics    = physics@on_air   <- some(new_on_air)
-          let new_status  = status@jumps     <- jumps.pred
-          let creature    = creature@status  <- new_status
-          let creature   = creature@physics <- physics
-          let local      = local@creature   <- creature
+      succ: 
+        if w_pressed then
+          let new_physics = physics@on_air   <- some(App.Quadrado.Physics.Air.start)
+          let creature    = creature@physics <- new_physics
+          let local       = local@creature   <- creature
           local
-  }
+        else
+          let on_air        = physics@on_air
+          without on_air:  local
+            let new_on_air  = on_air@rising    <- none
+            let physics     = physics@on_air   <- some(new_on_air)
+            let new_status  = status@jumps     <- jumps.pred
+            let creature    = creature@status  <- new_status
+            let creature    = creature@physics <- physics
+            let local       = local@creature   <- creature
+            local
+    }
+  else
+    local

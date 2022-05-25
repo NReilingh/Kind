@@ -11,10 +11,8 @@ type App.Quadrado.Status {
 
 //Reset jumps to creature's base value
 App.Quadrado.Status.reset_jumps(jumps: Nat, creature: App.Quadrado.Creature): App.Quadrado.Creature
-  let pos = creature@pos
-  if App.Quadrado.Coord.is_on_ground(pos) then
-    creature@status@jumps <- jumps
-  else
+  let on_air = creature@physics@on_air
+  without on_air : creature@status@jumps <- jumps
     creature
 
 
