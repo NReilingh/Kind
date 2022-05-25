@@ -1,0 +1,24 @@
+//Experimental
+type App.Quadrado.Cooldown {
+  new(
+    dash: F64
+    shoots: F64
+  )
+}
+
+
+//Updates the dash cooldown
+App.Quadrado.Cooldown.dash_update(creature: App.Quadrado.Creature): App.Quadrado.Creature
+  let cooldown = creature@status@cooldown
+  let val =
+    let reduce   = F64.sub(cooldown@dash, 1)
+    if F64.ltn(reduce, 0) then
+      0
+    else
+      reduce
+
+    let cooldown = cooldown@dash <- val
+    creature@status@cooldown <- cooldown
+  
+
+//App.Quadrado.Cooldown.shoot_update(cre

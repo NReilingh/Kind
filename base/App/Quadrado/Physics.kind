@@ -1,3 +1,4 @@
+//Type for Game Physics
 type App.Quadrado.Physics { 
   new(
     on_air: Maybe<App.Quadrado.Physics.Air>
@@ -24,7 +25,6 @@ type App.Quadrado.Physics.Dash {
 }
 
 
-
 //Dash starting value
 App.Quadrado.Physics.Dash.start: App.Quadrado.Physics.Dash
   App.Quadrado.Physics.Dash.new(5.0, some(20))
@@ -34,27 +34,42 @@ App.Quadrado.Physics.Air.start: App.Quadrado.Physics.Air
   App.Quadrado.Physics.Air.new(0.0, some(15))
 
 
-//Dash physics on frame
-App.Quadrado.Physics.Dash.frame(dash: App.Quadrado.Dash): App.Quadrado.Dash
+//Comparison Functions
+
+//Verifies if the player has Dash status
+App.Quadrado.Physics.is_dashing(creature: App.Quadrado.Creature): Bool
+  let dash = creature@physics@dashing
+  without dash: Bool.false
+  Bool.true
+  
+
+
+//Value update Functions
+
+//Updates Dash Values
+App.Quadrado.Physics.Dash.update(dash: App.Quadrado.Physics.Dash): Maybe<App.Quadrado.Physics.Dash>
   let max_dis = dash@distance
   let speed = dash@speed
   case max_dis { 
     none:
-      dash
+      none
     some:
       case max_dis.value { 
         zero: 
-          App.Quadrado.Dash.new(speed, none)
+          none
         succ:
           let new_distance  = some(max_dis.value - 1)
-          App.Quadrado.Dash.new(speed, new_distance)
+          let log_distance = max_dis.value - 1
+          log(Nat.show(log_distance))
+          some(App.Quadrado.Physics.Dash.new(speed, new_distance))
       }
   }
 
 
-//Jump physics on frame
-App.Quadrado.Physics.Air.frame(status: App.Quadrado.Air, rise_spd: F64): App.Quadrado.Air
-  //let rise_spd = 0.5
+
+//Updates Jump Values
+App.Quadrado.Physics.Air.update(status: App.Quadrado.Physics.Air): App.Quadrado.Physics.Air
+  let rise_spd = 0.5
   let gravity  = F64.div(2.0, 10)
   let max_fall = -4.0
   let max_jump = 3.0
@@ -63,16 +78,70 @@ App.Quadrado.Physics.Air.frame(status: App.Quadrado.Air, rise_spd: F64): App.Qua
   case rise {
     none:
       let new_speed = Pair.fst!!(App.Quadrado.order(speed - gravity, max_fall))
-      App.Quadrado.Air.new(new_speed, none)
+      App.Quadrado.Physics.Air.new(new_speed, none)
     some:
       case rise.value {
         zero: 
-          App.Quadrado.Air.new(speed, none)
+          App.Quadrado.Physics.Air.new(speed, none)
         succ:
           let new_speed = Pair.snd!!(App.Quadrado.order(speed + rise_spd, max_jump))
           let new_rise  = some(rise.value - 1)
-          App.Quadrado.Air.new(new_speed, new_rise)
+          App.Quadrado.Physics.Air.new(new_speed, new_rise)
       }
   }
 
 
+//Update Functions on When
+
+//Updates Positon of the Creature based on the Physics
+App.Quadrado.Physics.update_position(creature: App.Quadrado.Creature): App.Quadrado.Creature
+  let physics  = creature@physics
+  let movement = creature@movement
+  let on_air   = physics@on_air
+  let dash     = physics@dashing
+  let {x,y} = creature@pos
+  let x = 
+    without dash: x
+      let dir =  if movement@looking then F64.add else F64.sub
+      let speed = dash@speed
+      dir(x, speed)
+
+  let y = 
+    without on_air: y
+    let rising   = on_air@rising
+    let y = (y + (on_air@speed * -1))
+    if F64.gtn(y, 0) && Maybe.is_none!(rising) then 
+      0
+    else
+      y
+
+  let new_pos = Pair.new<F64, F64>(x, y)
+  creature@pos <- new_pos
+  
+
+//Updates the Physics of the Creature
+App.Quadrado.Physics.update(local: App.Quadrado.State.Local): App.Quadrado.State.Local
+  let creature = local@creature
+  let physics  = creature@physics
+
+  //Updates Air Physics
+  let local   = 
+    let air = physics@on_air
+    without air: local
+    let new_air  = App.Quadrado.Physics.Air.update(air)
+    let new_air  = physics@on_air <- some(new_air)
+    local@creature@physics <- new_air
+
+  //Updates Dash Physics
+  let local    =
+    let dash = physics@dashing
+    without dash: local
+    let new_dash    = App.Quadrado.Physics.Dash.update(dash)
+    let new_air     = App.Quadrado.Physics.Air.new(0.0, none)
+    let new_physics = App.Quadrado.Physics.new(some(new_air), new_dash)
+    //Sets dash cooldown to the creature
+    let creature    = App.Quadrado.Status.dash_cooldown(0.4, creature)
+    let creature    = creature@physics <- new_physics
+    local@creature <- creature
+
+  local

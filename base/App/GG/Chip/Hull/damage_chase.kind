@@ -22,7 +22,7 @@ App.GG.Chip.Hull.damage_chase: App.GG.Chip
 App.GG.Chip.Hull.damage_chase.Effect(damage: I32, delay: F64, interval: F64, projectile_num: Nat): App.GG.Effect<Unit>
   App.GG.Effect {
     App.GG.Effect.charge.reset
-    App.GG.Effect.animation.modify_by_duration(12, 50)
+    App.GG.Effect.animation.modify_by_duration.in_tile(12, 50)
     get frame = App.GG.Effect.frame.get
     get grid = App.GG.Effect.grid.get
     get center = App.GG.Effect.coord.get_center
@@ -61,7 +61,7 @@ App.GG.Chip.Hull.damage_chase.Projectile.Effect(dmg: I32, delay: F64, interval: 
         App.GG.Effect {
           App.GG.Effect.projectile.hit.damage_at(dmg, true, false, center)
           App.GG.Effect.vbox.at_tile(center, App.GG.img.target_tile)
-          //App.GG.Effect.vbox.modify_by_duration(App.GG.Chip.Upper.burrow_prey.img, frame % udelay, udelay - 1) 
+          //App.GG.Effect.vbox.modify_by_duration.in_tile(App.GG.Chip.Upper.burrow_prey.img, frame % udelay, udelay - 1) 
         }
 
     let move =

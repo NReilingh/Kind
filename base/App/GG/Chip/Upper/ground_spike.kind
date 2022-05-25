@@ -57,7 +57,7 @@ App.GG.Chip.Upper.ground_spike.Projectile.Effect(dmg: I32, delay: F64): App.GG.E
     without frame: App.GG.Effect.pass
     App.GG.Effect {
       App.GG.Effect.projectile.hit.damage_at(hp_percentage, true, true, center)
-      App.GG.Effect.vbox.modify_by_duration(App.GG.Chip.Upper.ground_spike.img, frame % udelay, udelay - 1)
+      App.GG.Effect.vbox.modify_by_duration.in_tile(App.GG.Chip.Upper.ground_spike.img, frame % udelay, udelay - 1)
       if not(frame =? 0) && ((frame % udelay) =? 0) then 
         App.GG.Effect { 
           let next_coord = {center@fst + 1, center@snd}

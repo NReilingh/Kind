@@ -36,7 +36,7 @@ App.GG.Effect.animation.modify_by_frame(mod: U64 -> U64): App.GG.Effect<Unit>
     App.GG.Effect.animation.update_frame(mod(frame))
   }
 
-App.GG.Effect.animation.modify_by_duration(frame_count: U64, max_frames: U64):  App.GG.Effect<Unit>
+App.GG.Effect.animation.modify_by_duration.in_tile(frame_count: U64, max_frames: U64):  App.GG.Effect<Unit>
   let count = U64.to_f64(frame_count)
   let max   = U64.to_f64(max_frames)
   let part  = max / count

@@ -88,7 +88,7 @@ App.GG.Chip.Upper.acid_rain.Projectile.Effect(dmg: I32, delay: F64, interval: F6
         let on_ground = 
           if frame >? (udelay + uinterval) then
             App.GG.Effect { 
-              App.GG.Effect.vbox.modify_by_duration(App.GG.Chip.Upper.acid_rain.img, frame - (uinterval + udelay), 19)
+              App.GG.Effect.vbox.modify_by_duration.in_tile(App.GG.Chip.Upper.acid_rain.img, frame - (uinterval + udelay), 19)
               App.GG.Effect.projectile.hit.damage_at(dmg, true, false, center)
               return unit
             }

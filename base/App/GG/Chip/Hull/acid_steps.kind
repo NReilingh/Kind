@@ -17,7 +17,7 @@ App.GG.Effect.Hull.acid_steps.Projectile.Effect.column(team: App.GG.Team, damage
 
 App.GG.Chip.Hull.acid_steps.Effect(damage: I32, duration: F64, delay: F64, burn_ticks: Nat): App.GG.Effect<Unit> //damage, duration on ground
   App.GG.Effect {
-    App.GG.Effect.animation.modify_by_duration(12, 24)
+    App.GG.Effect.animation.modify_by_duration.in_tile(12, 24)
     App.GG.Effect.charge.reset
     get frame = App.GG.Effect.frame.get
     get grid = App.GG.Effect.grid.get

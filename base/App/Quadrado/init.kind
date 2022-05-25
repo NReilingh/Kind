@@ -17,7 +17,8 @@ App.Quadrado.initial_creature(
   jumps: Nat
   pos: App.Quadrado.Coord
 ): App.Quadrado.State.Local
-  let status   = App.Quadrado.Status.new(hp, energy,jumps)
+  let cooldown = App.Quadrado.Cooldown.new(0.0)
+  let status   = App.Quadrado.Status.new(hp, energy, jumps, cooldown)
   let physics  = App.Quadrado.Physics.new(none, none)
   let movement = App.Quadrado.Movement.new(Pair.new<Bool, Bool>(Bool.false, Bool.false), Bool.false)
   let creature = App.Quadrado.Creature.new(status, pos, physics, movement)

@@ -12,16 +12,17 @@ App.Quadrado.draw.height_constant: U32
 
 //Function that creates the canvas
 App.Quadrado.draw.canvas(local: App.Quadrado.State.Local, global: Unit, img: VoxBox): VoxBox
-  let {x, y} = local@pos
+  let {x, y} = local@creature@pos
   let {x, y} = Pair.new<U32, U32>(F64.to_u32(x),F64.to_u32(y))
+  let looking = local@creature@movement@looking
   //let nave = App.Quadrado.img.boneco
   let nave = App.KL.Game.Hero.Fields.Assets.minion_img
   let {center_x, center_y} = {App.Quadrado.draw.width_constant/2, App.Quadrado.draw.height_constant/2}
   let func = 
-    if local@looking then 
-      VoxBox.Draw.image_reverse_x
-    else
+    if looking then 
       VoxBox.Draw.image
+    else
+      VoxBox.Draw.image_reverse_x
   let img = func((x + center_x) -128 , (y + center_y) -132, 1#32 , nave , img)
   App.Quadrado.draw.lines(0, 44, 1, local, global, img)
 

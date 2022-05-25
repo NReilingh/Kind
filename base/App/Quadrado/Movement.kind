@@ -6,6 +6,29 @@ type App.Quadrado.Movement {
 }
 
 
-
-
-
+//Updates Creature Position when moving left or right
+App.Quadrado.Movement.update_position(mps: F64, creature: App.Quadrado.Creature): App.Quadrado.Creature
+  let movement  = creature@movement
+  let direction = movement@direction
+  let {x,y}     = creature@pos
+  let mspeed    = mps/60.0
+  let dashing   = App.Quadrado.Physics.is_dashing(creature)
+  if dashing then
+    creature
+  else
+    //Looks LEFT  if { true false }
+    //Looks RIGHT if { false true }
+    switch App.Quadrado.pair.equal<Bool, Bool>(Bool.eql, Bool.eql, direction) { 
+      {true false}: 
+        let x = x - mspeed
+        let pos = Pair.new<F64, F64>(x, y)
+        let movement = movement@looking <- Bool.false
+        let creature = creature@movement <- movement
+        creature@pos <- pos
+      {false true}:
+        let x = x + mspeed
+        let pos = Pair.new<F64, F64>(x, y)
+        let movement = movement@looking <- Bool.true
+        let creature = creature@movement <- movement
+        creature@pos <- pos
+    } default creature

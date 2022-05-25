@@ -12,7 +12,7 @@ App.GG.Chip.Hull.blob_shield: App.GG.Chip
 App.GG.Chip.Hull.blob_shield.Effect(damage: I32, counter_duration: F64): App.GG.Effect<Unit>
   App.GG.Effect {
     App.GG.Effect.charge.reset
-    App.GG.Effect.animation.modify_by_duration(8, 12)
+    App.GG.Effect.animation.modify_by_duration.in_tile(8, 12)
     get frame = App.GG.Effect.frame.get
     get grid = App.GG.Effect.grid.get
     get center = App.GG.Effect.coord.get_center

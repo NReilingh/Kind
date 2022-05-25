@@ -10,6 +10,7 @@ type App.Quadrado.Creature {
       //hp: U32,
       //energy: U32
       //jumps: Nat
+      //cooldown: App.Quadrado.Cooldown
 
     //physics
       //on_air: Maybe<App.Quadrado.Air>

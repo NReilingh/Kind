@@ -1,0 +1,13 @@
+type App.GG.Tech {
+  new(
+    name: String
+    class: App.GG.Class
+    effect: App.GG.Effect<Unit>
+    energy: I32
+    img: VoxBox
+    attributes: App.GG.Attributes
+  )
+}
+
+App.GG.Tech.Generic: App.GG.Tech
+  App.GG.Tech.Arms.shockwave

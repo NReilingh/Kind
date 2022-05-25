@@ -12,7 +12,7 @@ App.GG.Chip.Hull.slime_jump: App.GG.Chip
 App.GG.Chip.Hull.slime_jump.Effect(damage: I32, duration: F64): App.GG.Effect<Unit>
   App.GG.Effect { 
     let uduration = I32.to_u64(F64.to_i32(duration* 60))
-    App.GG.Effect.animation.modify_by_duration(12, 24)
+    App.GG.Effect.animation.modify_by_duration.in_tile(12, 24)
     get frame = App.GG.Effect.frame.get
     get grid = App.GG.Effect.grid.get
     get creature = App.GG.Effect.creature.get

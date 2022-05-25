@@ -15,7 +15,7 @@ App.GG.Chip.Lower.attack_position.Effect(extra_damage: U64, vulnerability: U64, 
   let animation = App.GG.Animation.attack
   App.GG.Effect {
     get frame = App.GG.Effect.frame.get
-    App.GG.Effect.animation.modify_by_duration(0, ustand)
+    App.GG.Effect.animation.modify_by_duration.in_tile(0, ustand)
     App.GG.Effect.frame.inc
     without frame: App.GG.Effect.pass
     App.GG.Effect { 

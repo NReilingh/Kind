@@ -5,7 +5,7 @@ App.GG.Effect.basic_attack(creature_frame: U64): App.GG.Effect<Unit>
   let img = App.GG.img.bullet
   App.GG.Effect {
     App.GG.Effect.charge.reset
-    App.GG.Effect.animation.modify_by_duration(12, final_frame) //How many voxbox imgs has the animation , frame limit
+    App.GG.Effect.animation.modify_by_duration.in_tile(12, final_frame) //How many voxbox imgs has the animation , frame limit
     get frame = App.GG.Effect.frame.get
     App.GG.Effect.frame.inc
     get creature = App.GG.Effect.creature.get

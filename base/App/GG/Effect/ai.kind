@@ -19,8 +19,10 @@ App.GG.Effect.ai.inc(key: String): App.GG.Effect<Unit>
     (ai: App.GG.AI)
     let value = ai{key}
     case value { 
-      none: ai{key} <- +0#32
-      some: ai{key} <- value.value + 1
+      none: 
+          ai{key} <- +0#32
+      some: 
+        ai{key} <- value.value + 1
     }
   App.GG.Effect.ai.update(func)
 

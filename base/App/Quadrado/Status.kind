@@ -3,5 +3,24 @@ type App.Quadrado.Status {
     hp: U32,
     energy: U32
     jumps: Nat
+    cooldown: App.Quadrado.Cooldown
   )
 }
+
+
+
+//Reset jumps to creature's base value
+App.Quadrado.Status.reset_jumps(jumps: Nat, creature: App.Quadrado.Creature): App.Quadrado.Creature
+  let pos = creature@pos
+  if App.Quadrado.Coord.is_on_ground(pos) then
+    creature@status@jumps <- jumps
+  else
+    creature
+
+
+//Adds cooldown to the dash, cd is counted in seconds
+App.Quadrado.Status.dash_cooldown(cd: F64, creature: App.Quadrado.Creature): App.Quadrado.Creature
+  let cd     = cd * 60.0
+  creature@status@cooldown@dash <- cd
+  
+  

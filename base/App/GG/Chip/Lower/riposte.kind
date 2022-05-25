@@ -12,7 +12,7 @@ App.GG.Chip.Lower.riposte.Effect(damage: I32, reaction_time: F64): App.GG.Effect
   let utime = F64.to_u64(reaction_time * 60)
   App.GG.Effect {
     App.GG.Effect.charge.reset
-    App.GG.Effect.animation.modify_by_duration(0, utime)
+    App.GG.Effect.animation.modify_by_duration.in_tile(0, utime)
     get frame = App.GG.Effect.frame.get
     get grid = App.GG.Effect.grid.get
     get center = App.GG.Effect.coord.get_center

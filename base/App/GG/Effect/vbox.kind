@@ -1,5 +1,4 @@
-App.GG.Effect.vbox.set(vbox: Bool -> VoxBox -> VoxBox): App.GG.Effect<Unit>
-  (center, origin, local)
+App.GG.Effect.vbox.set(vbox: Bool -> VoxBox -> VoxBox): App.GG.Effect<Unit>  (center, origin, local)
   
   App.GG.Effect.Result.new!(unit, center, origin, local, vbox, 0, "")
 
@@ -56,13 +55,18 @@ App.GG.Effect.vbox.quadratic_bezier(from: App.GG.Coord, to: App.GG.Coord, pivot:
   App.GG.Effect.Result.new!(unit, center, origin, local, img, 0, "")
 
 
+App.GG.Effect.vbox.modify_by_duration.in_tile(animation: List<VoxBox>, current_frame: U64,  max_frames: U64): App.GG.Effect<Unit>
+  App.GG.Effect.vbox.modify_by_duration(animation, current_frame, max_frames, App.GG.Effect.vbox.in_tile)
 
-App.GG.Effect.vbox.modify_by_duration(animation: List<VoxBox>, current_frame: U64,  max_frames: U64): App.GG.Effect<Unit>
+
+
+App.GG.Effect.vbox.modify_by_duration(animation: List<VoxBox>, current_frame: U64,  max_frames: U64, f: VoxBox -> App.GG.Effect<Unit>): App.GG.Effect<Unit>
   let count = Nat.to_f64(List.length!(animation))
   let max   = U64.to_f64(max_frames)
   let part  = max / count
   let mod   = I32.to_nat(F64.to_i32((U64.to_f64(current_frame) / part)))
   let img   = List.get<VoxBox>(mod, animation)
   without img: App.GG.Effect.pass
-  App.GG.Effect.vbox.in_tile(img)
+  f(img)
+
 

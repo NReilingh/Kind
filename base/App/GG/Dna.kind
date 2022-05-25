@@ -1,0 +1,5 @@
+type App.GG.Dna { 
+  new(
+    a: App.GG.Tech, b: App.GG.Tech, c: App.GG.Tech
+  )
+}

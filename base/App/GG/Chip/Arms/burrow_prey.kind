@@ -50,7 +50,7 @@ App.GG.Chip.Arms.burrow_prey.Projectile.Effect(dmg: I32, delay: F64): App.GG.Eff
     without team: App.GG.Effect.pass
     let eff = 
       App.GG.Effect {
-        App.GG.Effect.vbox.modify_by_duration(App.GG.Chip.Arms.burrow_prey.img, frame % max_frame, max_frame - 1) 
+        App.GG.Effect.vbox.modify_by_duration.in_tile(App.GG.Chip.Arms.burrow_prey.img, frame % max_frame, max_frame - 1) 
         get can_hit = App.GG.Effect.projectile.can_hit(center) //change to coord
         App.GG.Effect.projectile.hit.damage_at(dmg, true, true center) // change to coord
         return unit
