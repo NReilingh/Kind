@@ -10,10 +10,16 @@ App.Quadrado.when: App.When<App.Quadrado.State>
           ['W']: App.Quadrado.when.jump(local, Bool.true)
 
           //Left movement
-          ['A']: App.Quadrado.when.movement_left(local, Bool.true)
-
+          ['A']: 
+            let right = local@creature@movement@direction@snd
+            App.Quadrado.when.movement(local, Bool.true, right)
           //Right movement
-          ['D']: App.Quadrado.when.movement_right(local, Bool.true)
+          ['D']: 
+            let left = local@creature@movement@direction@fst
+            App.Quadrado.when.movement(local, left, Bool.true)
+
+          //Starts Falling
+          ['S']: App.Quadrado.when.down(local, Bool.true)
 
           //Dash
           [16#16]: App.Quadrado.when.dash(local)
@@ -24,14 +30,21 @@ App.Quadrado.when: App.When<App.Quadrado.State>
     key_up:
       let new_local = 
         switch List.any<U16>(U16.eql(event.code)) {
-          //Falling
+          //Stops Jumps
           ['W']: App.Quadrado.when.jump(local, Bool.false)
 
           //Not Moving Left
-          ['A']: App.Quadrado.when.movement_left(local, Bool.false)
+          ['A']: 
+            let right = local@creature@movement@direction@snd
+            App.Quadrado.when.movement(local, Bool.false, right)
 
           //Not Moving Right
-          ['D']: App.Quadrado.when.movement_right(local, Bool.false)
+          ['D']: 
+            let left = local@creature@movement@direction@fst
+            App.Quadrado.when.movement(local, left, Bool.false)
+
+          //Stops Falling
+          ['S']: App.Quadrado.when.down(local, Bool.false)
 
           //Stop dash
           [16#16]: App.Quadrado.when.stop_dash(local)
@@ -48,7 +61,6 @@ App.Quadrado.when: App.When<App.Quadrado.State>
       //Deals with Status
       let local = App.Quadrado.frame.update_status(local)
 
-
       App.set_local<App.Quadrado.State>(local)
 
   } default App.pass<App.Quadrado.State>
@@ -56,30 +68,15 @@ App.Quadrado.when: App.When<App.Quadrado.State>
 
 
 
-//Function to move right
-App.Quadrado.when.movement_right(local: App.Quadrado.State.Local, moving: Bool): App.Quadrado.State.Local
+App.Quadrado.when.movement(local: App.Quadrado.State.Local, left: Bool, right: Bool): App.Quadrado.State.Local
   let creature = local@creature
   let movement = creature@movement
   let direction = movement@direction
 
-  //Moves while moving is true
+  //Moves while true
   let dir = 
-    (pair: Pair<Bool,Bool>)
-    Pair.new<Bool, Bool>(pair@fst, moving)
-
-  let set_dir = movement@direction <- dir(direction)
-  let new_creature = creature@movement <- set_dir
-  local@creature <- new_creature
-
-App.Quadrado.when.movement_left(local: App.Quadrado.State.Local, moving: Bool): App.Quadrado.State.Local
-  let creature = local@creature
-  let movement = creature@movement
-  let direction = movement@direction
-
-  //Moves while moving is true
-  let dir = 
-    (pair: Pair<Bool,Bool>)
-    Pair.new<Bool, Bool>(moving, pair@snd)
+    (pair: Pair<Bool, Bool>)
+    Pair.new<Bool, Bool>(left, right)
 
   let set_dir = movement@direction <- dir(direction)
   let new_creature = creature@movement <- set_dir
@@ -116,7 +113,7 @@ App.Quadrado.when.stop_dash(local: App.Quadrado.State.Local): App.Quadrado.State
     none:
       local
     some:
-    let new_dash     = physics@dashing <- none
+      let new_dash     = physics@dashing <- none
       let new_creature = creature@physics <- new_dash
       local@creature <- new_creature
   }
@@ -126,30 +123,38 @@ App.Quadrado.when.stop_dash(local: App.Quadrado.State.Local): App.Quadrado.State
 App.Quadrado.when.jump(local: App.Quadrado.State.Local, w_pressed: Bool): App.Quadrado.State.Local
   let creature = local@creature
   let status = creature@status
-  let jumps = status@jumps
+  let jumps = status@jumps@fst
   let physics = creature@physics
   let on_air = physics@on_air
   let dash = physics@dashing
   if Maybe.is_none!(dash) then
-    case jumps {
-      zero: 
-        local
-      succ: 
-        if w_pressed then
-          let new_physics = physics@on_air   <- some(App.Quadrado.Physics.Air.start)
-          let creature    = creature@physics <- new_physics
-          let local       = local@creature   <- creature
-          local
-        else
-          let on_air        = physics@on_air
-          without on_air:  local
-            let new_on_air  = on_air@rising    <- none
-            let physics     = physics@on_air   <- some(new_on_air)
-            let new_status  = status@jumps     <- jumps.pred
+    if w_pressed then 
+      let creature = App.Quadrado.Physics.start_jump(local@creature)
+      without on_air: local@creature <- creature
+        case jumps { 
+          zero: local
+          succ:
+            let new_status  = status@jumps@fst <- jumps.pred
             let creature    = creature@status  <- new_status
-            let creature    = creature@physics <- physics
             let local       = local@creature   <- creature
             local
-    }
+          }
+    else
+      without on_air:  local
+        local@creature <~ App.Quadrado.Physics.remove_rising
   else
     local
+
+
+App.Quadrado.when.down(local: App.Quadrado.State.Local, s_pressed: Bool): App.Quadrado.State.Local
+  let creature = local@creature
+  let physics = creature@physics
+  let on_air = physics@on_air
+  let dash = physics@dashing
+  if s_pressed then 
+    let new_air = some(App.Quadrado.Physics.Air.new(0.0, none))
+    local@creature@physics@on_air <~ (x: Maybe<App.Quadrado.Physics.Air>) Maybe.or!(x, new_air)
+  else
+    let on_air        = physics@on_air
+    without on_air:  local
+      local@creature <~ App.Quadrado.Physics.remove_rising

@@ -43,6 +43,21 @@ App.Quadrado.Physics.is_dashing(creature: App.Quadrado.Creature): Bool
   Bool.true
   
 
+//Modifies creature to start a new jump
+App.Quadrado.Physics.start_jump(creature: App.Quadrado.Creature): App.Quadrado.Creature
+  let physics = creature@physics
+  let physics = physics@on_air   <- some(App.Quadrado.Physics.Air.start)
+  creature@physics <- physics
+
+
+//Modifies creature to remove rising
+App.Quadrado.Physics.remove_rising(creature: App.Quadrado.Creature): App.Quadrado.Creature
+  let physics       = creature@physics
+  let on_air        = physics@on_air
+  without on_air:  creature
+    let new_on_air  = on_air@rising    <- none
+    let physics     = physics@on_air   <- some(new_on_air)
+    creature@physics <- physics
 
 //Value update Functions
 

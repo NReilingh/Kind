@@ -9,5 +9,5 @@ App.Quadrado.frame.movement(local: App.Quadrado.State.Local): App.Quadrado.State
   local@creature <~ App.Quadrado.Movement.update_position(mfps)
 
 App.Quadrado.frame.update_status(local: App.Quadrado.State.Local): App.Quadrado.State.Local
-  let local = local@creature <~ App.Quadrado.Status.reset_jumps(2)
+  let local = local@creature <~ App.Quadrado.Status.reset_jumps
   local@creature <~ App.Quadrado.Cooldown.dash_update

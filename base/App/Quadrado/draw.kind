@@ -39,7 +39,9 @@ App.Quadrado.draw.canvas(local: App.Quadrado.State.Local, global: Unit, img: Vox
 
     f(x, y, 1#32, minion@img, img)
 
-  App.Quadrado.draw.lines(0, 100, 1, local, global, img)
+  let img = App.Quadrado.draw.lines(0, 100, 0, local, global, img)
+
+  img
 
 
 
@@ -58,9 +60,6 @@ App.Quadrado.draw.lines(x: U32, y: U32, z:U32, local: App.Quadrado.State.Local, 
     VoxBox.Draw.rect(x, draw_y, z, App.Quadrado.draw.width_constant, 1, Col32.new(0,0,0,255), img)
 
   img
-
-  
-
 
 
 //Plataformas:

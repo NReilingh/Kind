@@ -11,7 +11,7 @@ type App.Quadrado.Creature {
     //status
       //hp: U32,
       //energy: U32
-      //jumps: Nat
+      //jumps: Pair<Nat, Nat>
       //cooldown: App.Quadrado.Cooldown
 
     //physics
