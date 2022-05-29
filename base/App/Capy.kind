@@ -69,7 +69,7 @@ type App.Capy.Creature {
   new(
     class: App.Capy.Creature.Class
     team:  App.Capy.Team
-    pos:   App.Capy.Coord
+    pos:   Maybe<App.Capy.Coord>
   )
 }
 
@@ -161,7 +161,6 @@ App.Capy.draw.canvas(game: App.Capy.Game, img: VoxBox): VoxBox
   for coord:tile in game.board with img:
     let {x, y} = coord
     VoxBox.Draw.rect(x * App.Capy.Tile.size, y * App.Capy.Tile.size, 0, App.Capy.Tile.size, App.Capy.Tile.size, Col32.new(255, 0, 0,255), img)
-    
   img
 
 App.Capy: App<App.Capy.State>
