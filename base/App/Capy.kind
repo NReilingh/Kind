@@ -1,0 +1,175 @@
+App.Capy.Board.size: Pair<U32, U32>
+  {8,3}
+
+App.Capy.Tile.size: U32
+  32
+
+App.Capy.scale: U32
+  2
+
+App.Capy.State: App.State
+  App.State.new(App.Capy.Local, Unit)
+
+type App.Capy.Local {
+  lobby
+  game(value: App.Capy.Game)
+}
+
+type App.Capy.Game {
+  new(
+    board:      App.Capy.Board
+    players:    Pair<Maybe<App.Capy.Player>, Maybe<App.Capy.Player>>
+    creatures:  Map<App.Capy.Creature>
+    random:     Nat
+  )
+} 
+
+App.Capy.Board: Type
+  BBT<App.Capy.Coord, App.Capy.Tile>
+
+App.Capy.Board.set(coord: App.Capy.Coord, tile: App.Capy.Tile, board: App.Capy.Board): App.Capy.Board
+  BBT.insert<App.Capy.Coord, App.Capy.Tile>(App.Capy.Coord.cmp, coord, tile, board)
+
+App.Capy.Coord: Type
+  Pair<U32, U32>
+
+App.Capy.Coord.cmp(a: App.Capy.Coord, b: App.Capy.Coord): Cmp
+  case U32.cmp(a@fst, b@fst) {
+    ltn: Cmp.ltn
+    eql: U32.cmp(a@snd, b@snd)
+    gtn: Cmp.gtn
+  }
+
+type App.Capy.Tile {
+  new(
+    creatures: List<String>
+    owner:     App.Capy.Team
+    class:     App.Capy.Tile.Class
+  )
+}
+
+type App.Capy.Player {
+  new(
+    name:      String
+    creatures: List<String>
+  )
+} 
+
+type App.Capy.Tile.Class {
+  normal
+}
+
+type App.Capy.Team {
+  fst
+  snd
+  none
+}
+
+type App.Capy.Creature {
+  new(
+    class: App.Capy.Creature.Class
+    team:  App.Capy.Team
+    pos:   App.Capy.Coord
+  )
+}
+
+type App.Capy.Creature.Class {
+  player(value: App.Capy.Creature.Player)
+  minion(value: App.Capy.Creature.Minion)
+}
+
+type App.Capy.Creature.Player {
+  new(
+    data: App.Capy.Creature.Player.Data 
+    // charge: Maybe<U32>
+    // energy: U32
+  )
+}
+
+type App.Capy.Creature.Player.Data {
+  new(
+    img: VoxBox
+  )
+}
+
+type App.Capy.Creature.Minion {
+  new(
+    data: App.Capy.Creature.Minion.Data
+  )
+}
+
+type App.Capy.Creature.Minion.Data {
+  new(
+    img: VoxBox
+  )
+}
+
+type App.Capy.Game {
+  new(
+    board:      App.Capy.Board
+    players:    Pair<Maybe<App.Capy.Player>, Maybe<App.Capy.Player>>
+    creatures:  Map<App.Capy.Creature>
+    random:     Nat
+  )
+}
+
+App.Capy.Tile.init(team: App.Capy.Team): App.Capy.Tile
+  App.Capy.Tile.new([], team, App.Capy.Tile.Class.normal)
+
+App.Capy.Board.init: App.Capy.Board
+  let board = BBT.tip!!
+  let {x, y} = App.Capy.Board.size
+  for i: U32 from 0 to x with board:
+    for j: U32 from 0 to y with board:
+      let team = App.Capy.Tile.init(if i <? (x / 2) then App.Capy.Team.fst else App.Capy.Team.snd)
+      let board = App.Capy.Board.set({i, j}, team, board)
+      board
+    board
+  board
+
+
+App.Capy.init: App.Init<App.Capy.State>
+  let board = App.Capy.Board.init
+  let game = App.Capy.Game.new(board, {none, none}, {}, 0)
+  let local = App.Capy.Local.game(game)
+  App.Store.new<App.Capy.State>(local, unit)
+
+App.Capy.draw(img: VoxBox): App.Draw<App.Capy.State>
+  (state)
+  let local = state@local
+  case local {
+    lobby: <div>"I'm in the Lobby"</div>
+    game:
+      let img   = App.Capy.draw.canvas(local.value, img)
+      <div style={"width": "vw", "height": "vh", "display": "flex", "flex-direction": "row", "justify-content": "center", "align-items": "center"}>
+        {
+          DOM.vbox({
+            "class": "pixel-art" 
+            "id": "game_screen",
+            "width":  U32.show(App.Capy.Tile.size * App.Capy.Board.size@fst),
+            "height": U32.show(App.Capy.Tile.size * App.Capy.Board.size@snd),
+            "scale":  U32.show(App.Capy.scale),
+          },
+          {},
+          img)
+        }
+      </div>
+  }
+
+App.Capy.draw.canvas(game: App.Capy.Game, img: VoxBox): VoxBox
+  open game 
+  for coord:tile in game.board with img:
+    let {x, y} = coord
+    VoxBox.Draw.rect(x * App.Capy.Tile.size, y * App.Capy.Tile.size, 0, App.Capy.Tile.size, App.Capy.Tile.size, Col32.new(255, 0, 0,255), img)
+    
+  img
+
+App.Capy: App<App.Capy.State>
+  let img = VoxBox.alloc_capacity(U32.mul(1048576, 8))
+  App.new<App.Capy.State>(
+    App.Capy.init
+    App.Capy.draw(img)
+    App.no_when<App.Capy.State>
+    App.no_tick<App.Capy.State>
+    App.no_post<App.Capy.State>
+  )
