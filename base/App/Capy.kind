@@ -27,8 +27,21 @@ type App.Capy.Game {
 App.Capy.Board: Type
   BBT<App.Capy.Coord, App.Capy.Tile>
 
+
 App.Capy.Board.set(coord: App.Capy.Coord, tile: App.Capy.Tile, board: App.Capy.Board): App.Capy.Board
   BBT.insert<App.Capy.Coord, App.Capy.Tile>(App.Capy.Coord.cmp, coord, tile, board)
+
+
+//Gets a tile in the board
+App.Capy.Board.get(pos: App.Capy.Coord, board: App.Capy.Board):Maybe<App.Capy.Tile>
+  BBT.lookup<App.Capy.Coord, App.Capy.Tile>(App.Capy.Coord.cmp, pos, board)
+
+
+//Modifies something in the board
+App.Capy.Board.mut(pos: App.Capy.Coord, mut: App.Capy.Tile -> App.Capy.Tile, board: App.Capy.Board): App.Capy.Board
+  BBT.adjust<App.Capy.Coord, App.Capy.Tile>(App.Capy.Coord.cmp, mut, pos, board)
+  
+
 
 App.Capy.Coord: Type
   Pair<U32, U32>
@@ -50,17 +63,28 @@ type App.Capy.Tile {
 
 type App.Capy.Player {
   new(
-    name:   String
-    ssquad: App.Capy.Player.Squad
+    name:  String
+    squad: App.Capy.Player.Squad<App.Capy.Creature.Player.Data>
   )
 }
+
 
 type App.Capy.Game.Player {
   new(
     name:      String
-    creatures: List<String>
+    creatures: App.Capy.Player.Squad<String>
   )
 } 
+
+
+type App.Capy.Player.Squad<A: Type> { 
+  new(
+    main: A
+    lft:  A
+    rgt:  A
+  )
+}
+
 
 type App.Capy.Tile.Class {
   normal
@@ -180,9 +204,92 @@ App.Capy: App<App.Capy.State>
     App.no_post<App.Capy.State>
   )
 
-App.Capy.Player.Squad: Type
-  let hero = App.Capy.Creature.Player.Data
-  Triple<hero, hero, hero>
 
-App.Capy.Board.insert_player(player: App.Capy.Player, board: App.Capy.Board): App.Capy.Board
-  ?s
+App.Capy.create_player_with_data(data: App.Capy.Creature.Player.Data, pos: Maybe<App.Capy.Coord>, team: App.Capy.Team): App.Capy.Creature
+  let player = App.Capy.Creature.Player.new(data)
+  let class  = App.Capy.Creature.Class.player(player)
+  App.Capy.Creature.new(class, team, pos)
+
+
+App.Capy.create_minion_with_data(data: App.Capy.Creature.Minion.Data, pos: Maybe<App.Capy.Coord>, team: App.Capy.Team): App.Capy.Creature
+  let minion = App.Capy.Creature.Minion.new(data)
+  let class  = App.Capy.Creature.Class.minion(minion)
+  App.Capy.Creature.new(class, team, pos)
+
+
+//Cria um novo Game Player               <- Done
+//Colocar esse Game Player no time (team)
+//Colocar a criatura principal no centro do mapa 
+//Colocar as 3 criaturas no mapa de criaturas do game  // no tile
+  
+
+
+App.Capy.Creatures.update_map(data: Either<App.Capy.Creature.Player.Data, App.Capy.Creature.Minion.Data> team: App.Capy.Team, pos: Maybe<App.Capy.Coord>, key: String, map: Map<App.Capy.Creature>): Map<App.Capy.Creature>
+  case data { 
+    left: 
+      let creature = App.Capy.create_player_with_data(data.value, pos, team)
+      map{key} <- creature
+    right:
+      let creature = App.Capy.create_minion_with_data(data.value, pos, team)
+      map{key} <- creature
+  }
+
+
+App.Capy.new_game_player(player: App.Capy.Player): App.Capy.Game.Player
+  let squad        = App.Capy.Player.Squad.new<String>(player@name|"_01", player@name|"_02", player@name|"_03")
+  App.Capy.Game.Player.new(player@name, squad)
+
+
+
+App.Capy.Creatures_create_squad(player: App.Capy.Player, team: App.Capy.Team): List<Pair<String, App.Capy.Creature>>
+  let pos = 
+      case team { 
+        fst: some({1#32, 1#32})
+        snd: some({6#32, 1#32})
+        none: none
+      }
+  let game_player = App.Capy.new_game_player(player)
+  let squad       = player@squad
+  let list = [{game_player@creatures@main, squad@main},
+              {game_player@creatures@lft,  squad@lft},
+              {game_player@creatures@rgt,  squad@rgt}]
+  let result = []
+  for {key, data} in list with result:
+    let pos = 
+      if String.eql(key, game_player@creatures@main) then
+        pos
+      else
+        none
+    List.cons!({key, App.Capy.create_player_with_data(data, pos, team)}, result)
+
+  List.reverse!(result)
+
+
+App.Capy.fold(acum: Map<App.Capy.Creature>, setter: String -> App.Capy.Creature -> Map<App.Capy.Creature> -> Map<App.Capy.Creature>, list: List<Pair<String, App.Capy.Creature>>): Map<App.Capy.Creature>
+  case list { 
+    nil: acum
+    cons: App.Capy.fold(setter(list.head@fst, list.head@snd, acum), setter, list.tail)
+  }
+
+
+App.Capy.Tile.set_main_creature(name: String, tile: App.Capy.Tile): App.Capy.Tile
+  let creatures = List.cons<String>(name, tile@creatures)
+  tile@creatures <- creatures
+
+
+App.Capy.Game.insert_player(player: App.Capy.Player, team: App.Capy.Team, game: App.Capy.Game): App.Capy.Game
+  let game_player  = App.Capy.new_game_player(player)
+  let game         = game@player@fst <- some
+  let creatures    = App.Capy.Creatures_create_squad(player, team)
+  let map          = App.Capy.fold(game@creatures, Map.set<App.Capy.Creature>, creatures)
+  let game         = game@creatures <- map
+  let pos = 
+      case team { 
+        fst:  {1#32, 1#32}
+        snd:  {6#32, 1#32}
+        none: {0#32, 0#32}
+      }
+  let mut          = App.Capy.Tile.set_main_creature(game_player@creatures@main)
+  let board        = App.Capy.Board.mut(pos, mut, game@board)
+  game@board <- board
+
