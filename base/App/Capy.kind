@@ -18,7 +18,7 @@ type App.Capy.Local {
 type App.Capy.Game {
   new(
     board:      App.Capy.Board
-    players:    Pair<Maybe<App.Capy.Player>, Maybe<App.Capy.Player>>
+    players:    Pair<Maybe<App.Capy.Game.Player>, Maybe<App.Capy.Game.Player>>
     creatures:  Map<App.Capy.Creature>
     random:     Nat
   )
@@ -49,6 +49,13 @@ type App.Capy.Tile {
 }
 
 type App.Capy.Player {
+  new(
+    name:   String
+    ssquad: App.Capy.Player.Squad
+  )
+}
+
+type App.Capy.Game.Player {
   new(
     name:      String
     creatures: List<String>
@@ -107,7 +114,7 @@ type App.Capy.Creature.Minion.Data {
 type App.Capy.Game {
   new(
     board:      App.Capy.Board
-    players:    Pair<Maybe<App.Capy.Player>, Maybe<App.Capy.Player>>
+    players:    Pair<Maybe<App.Capy.Game.Player>, Maybe<App.Capy.Game.Player>>
     creatures:  Map<App.Capy.Creature>
     random:     Nat
   )
@@ -176,3 +183,6 @@ App.Capy: App<App.Capy.State>
 App.Capy.Player.Squad: Type
   let hero = App.Capy.Creature.Player.Data
   Triple<hero, hero, hero>
+
+App.Capy.Board.insert_player(player: App.Capy.Player, board: App.Capy.Board): App.Capy.Board
+  ?s
