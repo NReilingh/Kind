@@ -172,3 +172,7 @@ App.Capy: App<App.Capy.State>
     App.no_tick<App.Capy.State>
     App.no_post<App.Capy.State>
   )
+
+App.Capy.Player.Squad: Type
+  let hero = App.Capy.Creature.Player.Data
+  Triple<hero, hero, hero>
