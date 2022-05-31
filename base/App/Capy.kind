@@ -247,12 +247,12 @@ App.Capy.Creatures_create_squad(player: App.Capy.Player, team: App.Capy.Team): L
               {game_player@creatures@rgt,  player@squad@rgt}]
   let result = []
   for {key, data} in list with result:
-    let pos = 
+    let rpos = 
       if String.eql(key, game_player@creatures@main) then
         pos
       else
         none
-    List.cons!({key, App.Capy.create_player_with_data(data, pos, team)}, result)
+    List.cons!({key, App.Capy.create_player_with_data(data, rpos, team)}, result)
 
   List.reverse!(result)
 
