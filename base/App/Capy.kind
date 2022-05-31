@@ -217,13 +217,6 @@ App.Capy.create_minion_with_data(data: App.Capy.Creature.Minion.Data, pos: Maybe
   App.Capy.Creature.new(class, team, pos)
 
 
-//Cria um novo Game Player               <- Done
-//Colocar esse Game Player no time (team)
-//Colocar a criatura principal no centro do mapa 
-//Colocar as 3 criaturas no mapa de criaturas do game  // no tile
-  
-
-
 App.Capy.Creatures.update_map(data: Either<App.Capy.Creature.Player.Data, App.Capy.Creature.Minion.Data> team: App.Capy.Team, pos: Maybe<App.Capy.Coord>, key: String, map: Map<App.Capy.Creature>): Map<App.Capy.Creature>
   case data { 
     left: 
@@ -249,10 +242,9 @@ App.Capy.Creatures_create_squad(player: App.Capy.Player, team: App.Capy.Team): L
         none: none
       }
   let game_player = App.Capy.new_game_player(player)
-  let squad       = player@squad
-  let list = [{game_player@creatures@main, squad@main},
-              {game_player@creatures@lft,  squad@lft},
-              {game_player@creatures@rgt,  squad@rgt}]
+  let list = [{game_player@creatures@main, player@squad@main},
+              {game_player@creatures@lft,  player@squad@lft},
+              {game_player@creatures@rgt,  player@squad@rgt}]
   let result = []
   for {key, data} in list with result:
     let pos = 
@@ -279,7 +271,7 @@ App.Capy.Tile.set_main_creature(name: String, tile: App.Capy.Tile): App.Capy.Til
 
 App.Capy.Game.insert_player(player: App.Capy.Player, team: App.Capy.Team, game: App.Capy.Game): App.Capy.Game
   let game_player  = App.Capy.new_game_player(player)
-  let game         = game@player@fst <- some
+  let game         = game@player <- game@player@fst <- some(game_player)
   let creatures    = App.Capy.Creatures_create_squad(player, team)
   let map          = App.Capy.fold(game@creatures, Map.set<App.Capy.Creature>, creatures)
   let game         = game@creatures <- map
@@ -289,7 +281,5 @@ App.Capy.Game.insert_player(player: App.Capy.Player, team: App.Capy.Team, game: 
         snd:  {6#32, 1#32}
         none: {0#32, 0#32}
       }
-  let mut          = App.Capy.Tile.set_main_creature(game_player@creatures@main)
-  let board        = App.Capy.Board.mut(pos, mut, game@board)
-  game@board <- board
+  game@board <~ App.Capy.Board.mut(pos, (tile: App.Capy.Tile) tile@creatures <~ List.cons!(game_player@creatures@main))
 
