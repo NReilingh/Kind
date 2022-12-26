@@ -12,6 +12,8 @@ use kind_report::RenderConfig;
 
 use kind_driver as driver;
 
+mod watch;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
@@ -73,6 +75,9 @@ pub enum Command {
 
     #[clap(aliases = &["e"])]
     Erase { file: String },
+
+    #[clap(aliases = &["w"])]
+    Watch { file: String },
 
     /// Runs Main on the HVM
     #[clap(aliases = &["r"])]
@@ -285,6 +290,9 @@ pub fn run_cli(config: Cli) -> anyhow::Result<()> {
                 )
             })?;
             println!("{}", res);
+        },
+        Command::Watch { file } => {
+            watch::run(root, file);
         }
     }
 

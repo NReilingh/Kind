@@ -16,7 +16,7 @@ use kind_tree::concrete::expr::{Binding, CaseBinding, Destruct, Expr, ExprKind, 
 use kind_tree::concrete::pat::{Pat, PatIdent, PatKind};
 use kind_tree::concrete::visitor::Visitor;
 use kind_tree::concrete::{Argument, Book, Entry, Module, Rule, TopLevel};
-use kind_tree::symbol::{Ident, QualifiedIdent};
+use kind_tree::symbol::{Ident, QualifiedIdent, Symbol};
 use kind_tree::{visit_opt, visit_vec};
 
 use crate::diagnostic::PassDiagnostic;
@@ -30,7 +30,7 @@ pub struct UnboundCollector {
     pub context_vars: Vec<(Range, String)>,
 
     // Keep track of top level definitions.
-    pub top_level_defs: FxHashMap<String, Range>,
+    pub top_level_defs: FxHashMap<Symbol, Range>,
     pub unbound_top_level: FxHashMap<String, FxHashSet<QualifiedIdent>>,
 
     pub record_defs: FxHashMap<String, Vec<String>>,
@@ -103,7 +103,7 @@ impl UnboundCollector {
             TopLevel::SumType(sum) => {
                 debug_assert!(sum.name.get_aux().is_none());
                 self.top_level_defs
-                    .insert(sum.name.get_root(), sum.name.range);
+                    .insert(sum.name.get_root_symbol().clone(), sum.name.range);
 
                 let res = sum.constructors.iter().map(|x| (x.name.to_string(), x.args.map(|x| x.name.to_string()).to_vec()));
                 self.type_defs.insert(sum.name.to_string(), res.collect());
@@ -112,7 +112,7 @@ impl UnboundCollector {
                     let name_cons = sum.name.add_segment(cons.name.to_str());
                     debug_assert!(name_cons.get_aux().is_none());
                     self.top_level_defs
-                        .insert(name_cons.get_root(), name_cons.range);
+                        .insert(name_cons.get_root_symbol().clone(), name_cons.range);
                 }
             }
             TopLevel::RecordType(rec) => {
@@ -124,15 +124,15 @@ impl UnboundCollector {
                 self.record_defs.insert(rec.name.to_string(), rec.fields.iter().map(|x| x.0.to_string()).collect());
 
                 self.top_level_defs
-                    .insert(rec.name.get_root(), rec.name.range);
+                    .insert(rec.name.get_root_symbol().clone(), rec.name.range);
 
                 self.top_level_defs
-                    .insert(name_cons.get_root(), name_cons.range);
+                    .insert(name_cons.get_root_symbol().clone(), name_cons.range);
             }
             TopLevel::Entry(entry) => {
                 debug_assert!(entry.name.get_aux().is_none());
                 self.top_level_defs
-                    .insert(entry.name.get_root(), entry.name.range);
+                    .insert(entry.name.get_root_symbol().clone(), entry.name.range);
             }
         }
     }
@@ -154,7 +154,7 @@ impl Visitor for UnboundCollector {
 
     fn visit_qualified_ident(&mut self, ident: &mut QualifiedIdent) {
         debug_assert!(ident.get_aux().is_none());
-        if !self.top_level_defs.contains_key(&ident.get_root()) {
+        if !self.top_level_defs.contains_key(&ident.get_root_symbol()) {
             let entry = self.unbound_top_level.entry(ident.get_root()).or_default();
             entry.insert(ident.clone());
         }

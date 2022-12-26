@@ -84,6 +84,11 @@ impl QualifiedIdent {
     }
 
     #[inline]
+    pub fn get_root_symbol(&self) -> &Symbol {
+        &self.root
+    }
+
+    #[inline]
     pub fn get_aux(&self) -> Option<Symbol> {
         self.aux.clone()
     }

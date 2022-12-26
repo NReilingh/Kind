@@ -7,6 +7,7 @@ use core::fmt;
 use fxhash::FxHashSet;
 use kind_pass::expand::expand_module;
 use kind_pass::expand::uses::expand_uses;
+use kind_span::SyntaxCtxIndex;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -225,7 +226,7 @@ fn parse_and_store_book_by_path(session: &mut Session, path: &PathBuf, book: &mu
 
     let tx = session.diagnostic_sender.clone();
 
-    let (mut module, mut failed) = kind_parser::parse_book(tx.clone(), ctx_id, &input);
+    let (mut module, mut failed) = kind_parser::parse_book(tx.clone(), SyntaxCtxIndex(ctx_id), &input);
 
     expand_uses(&mut module, tx.clone());
     expand_module(tx.clone(), &mut module);

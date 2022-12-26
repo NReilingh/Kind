@@ -38,6 +38,7 @@ impl Session {
             diagnostic_sender: sender,
         }
     }
+
     pub fn add_path(&mut self, path: Rc<PathBuf>, code: String) -> usize {
         let id = self.book_counter;
         self.book_counter += 1;

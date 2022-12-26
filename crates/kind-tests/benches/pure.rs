@@ -6,15 +6,16 @@ use std::{fs, path::{PathBuf}};
 use driver::{resolution};
 use kind_driver::session::Session;
 use kind_pass::{expand::{self, uses::expand_uses}, desugar, erasure};
+use kind_span::SyntaxCtxIndex;
 use test::Bencher;
 
 use kind_driver as driver;
 
 fn new_session() -> Session {
     let (rx, _) = std::sync::mpsc::channel();
-    
+
     let root = PathBuf::from("./suite/lib").canonicalize().unwrap();
-    
+
     Session::new(root, rx)
 }
 
@@ -36,7 +37,7 @@ fn bench_exp_pure_parsing(b: &mut Bencher) {
     b.iter(|| {
         paths.iter().map(|input| {
             let session = new_session();
-            kind_parser::parse_book(session.diagnostic_sender.clone(), 0, &input)
+            kind_parser::parse_book(session.diagnostic_sender.clone(), SyntaxCtxIndex(0), &input)
         }).fold(0, |n, _| n + 1)
     })
 }
@@ -49,7 +50,7 @@ fn bench_exp_pure_use_expansion(b: &mut Bencher) {
     let mut paths: Vec<_> = paths.iter().map(|x| {
         let input = fs::read_to_string(x).unwrap();
         let (rx, _) = std::sync::mpsc::channel();
-        let (modu, failed) = kind_parser::parse_book(rx, 0, &input);
+        let (modu, failed) = kind_parser::parse_book(rx, SyntaxCtxIndex(0), &input);
         assert!(!failed);
         modu
     }).collect();
@@ -70,7 +71,7 @@ fn bench_exp_pure_derive_expansion(b: &mut Bencher) {
     let mut books: Vec<_> = paths.iter().map(|x| {
         let input = fs::read_to_string(x).unwrap();
         let (rx, _) = std::sync::mpsc::channel();
-        let (mut module, failed) = kind_parser::parse_book(rx.clone(), 0, &input);
+        let (mut module, failed) = kind_parser::parse_book(rx.clone(), SyntaxCtxIndex(0), &input);
         assert!(!failed);
         expand_uses(&mut module, rx);
         module
