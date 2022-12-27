@@ -5,8 +5,6 @@ use kind_span::Range;
 use kind_tree::symbol::{Symbol, QualifiedIdent, Ident};
 use kind_report::data::DiagnosticFrame;
 
-use crate::Index;
-
 pub enum QueryDiagnostic {
     DuplicatedDefinition(Symbol, Range, Range),
     UnboundVariable(Vec<Ident>, Vec<String>),

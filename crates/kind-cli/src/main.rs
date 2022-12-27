@@ -1,18 +1,22 @@
+
+
 use std::path::PathBuf;
 use std::time::Instant;
-use std::{fmt, io};
 
 use clap::{Parser, Subcommand};
 use driver::resolution::ResolutionError;
 use kind_driver::session::Session;
 
 use kind_report::data::{Diagnostic, Log};
-use kind_report::report::{FileCache, Report};
+
 use kind_report::RenderConfig;
 
 use kind_driver as driver;
 
+use crate::io_write::render_to_stderr;
+
 mod watch;
+mod io_write;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -105,32 +109,6 @@ pub enum Command {
     ToHVM { file: String },
 }
 
-/// Helper structure to use stderr as fmt::Write
-struct ToWriteFmt<T>(pub T);
-
-impl<T> fmt::Write for ToWriteFmt<T>
-where
-    T: io::Write,
-{
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.0.write_all(s.as_bytes()).map_err(|_| fmt::Error)
-    }
-}
-
-pub fn render_to_stderr<T, E>(render_config: &RenderConfig, session: &T, err: &E)
-where
-    T: FileCache,
-    E: Report,
-{
-    Report::render(
-        err,
-        session,
-        render_config,
-        &mut ToWriteFmt(std::io::stderr()),
-    )
-    .unwrap();
-}
-
 pub fn compile_in_session<T>(
     render_config: &RenderConfig,
     root: PathBuf,
@@ -186,7 +164,7 @@ pub fn compile_in_session<T>(
     }
 }
 
-pub fn run_cli(config: Cli) -> anyhow::Result<()> {
+pub async fn run_cli(config: Cli) -> anyhow::Result<()> {
 
     kind_report::check_if_colors_are_supported(config.no_color);
 
@@ -292,15 +270,16 @@ pub fn run_cli(config: Cli) -> anyhow::Result<()> {
             println!("{}", res);
         },
         Command::Watch { file } => {
-            watch::run(root, file);
+            watch::run(&root, &PathBuf::from(file)).await;
         }
     }
 
     Ok(())
 }
 
-pub fn main() {
-    match run_cli(Cli::parse()) {
+#[tokio::main]
+async fn main() {
+    match run_cli(Cli::parse()).await {
         Ok(_) => std::process::exit(0),
         Err(_) => std::process::exit(1),
     }

@@ -59,7 +59,8 @@ pub enum Log {
     Rewrites(u64),
     Failed(Duration),
 }
-pub trait Diagnostic {
+
+pub trait Diagnostic : Sync + Send {
     fn get_syntax_ctx(&self) -> Option<SyntaxCtxIndex>;
     fn to_diagnostic_frame(&self) -> DiagnosticFrame;
 }

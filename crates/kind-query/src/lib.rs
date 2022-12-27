@@ -7,25 +7,29 @@ use std::{
     fmt::Display,
     fs,
     path::{Path, PathBuf},
-    sync::mpsc::{self, Sender},
+    sync::mpsc::{self},
 };
 
+use async_trait::async_trait;
 use diagnostic::QueryDiagnostic;
 use fxhash::{FxHashMap, FxHashSet};
-use kind_pass::{expand::{expand_module, uses::expand_uses}, unbound};
+use kind_pass::expand::{expand_module, uses::expand_uses};
+use kind_pass::unbound;
 use kind_pass::unbound::UnboundCollector;
 use kind_report::{data::Diagnostic, report::FileCache};
 use kind_span::{Range, SyntaxCtxIndex};
-use kind_tree::{concrete::{self}, symbol::Ident};
+use kind_tree::concrete::{self};
 use kind_tree::concrete::{Book, Module, TopLevel};
+use kind_tree::symbol::Ident;
 use kind_tree::symbol::Symbol;
 use kind_tree::{concrete::visitor::Visitor, symbol::QualifiedIdent};
 use petgraph::prelude::DiGraphMap;
 use petgraph::visit::{depth_first_search, Control, Reversed};
 use petgraph::Direction;
-use strsim::jaro;
 use std::fmt::Debug;
 use std::hash::Hash;
+use strsim::jaro;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 pub mod diagnostic;
 
@@ -149,7 +153,6 @@ where
 
     pub fn invalidate(&mut self, node: Key) -> bool {
         if let Some(res) = self.nodes.get_mut(&node) {
-            println!("Invalidated {:?}", node);
             let was_invalid = res.status == Status::Invalid;
             res.status = Status::Invalid;
             return was_invalid;
@@ -170,25 +173,27 @@ pub enum Outcome {
 
 // Session
 
-pub struct Session<Index: ReusableIndex, URI>
+pub struct Session<Index: ReusableIndex, URI, Evs>
 where
     URI: Hash,
 {
     pub database: Database<Index, URI>,
     pub graph: DiGraphMap<Index, ()>,
+    pub events: Sender<Event<Index, Evs>>,
     root: PathBuf,
 }
 
-impl<Key, URI> Session<Key, URI>
+impl<Key, URI, Evs> Session<Key, URI, Evs>
 where
     Key: ReusableIndex + Debug,
     URI: Hash,
 {
-    pub fn new(root: PathBuf) -> Self {
+    pub fn new(root: &Path, events: Sender<Event<Key, Evs>>) -> Self {
         Self {
             database: Default::default(),
             graph: Default::default(),
-            root,
+            events,
+            root: root.to_path_buf(),
         }
     }
 
@@ -331,6 +336,12 @@ impl From<Index> for SyntaxCtxIndex {
     }
 }
 
+impl From<SyntaxCtxIndex> for Index {
+    fn from(value: SyntaxCtxIndex) -> Self {
+        Index(value.0)
+    }
+}
+
 fn module_to_book<'a>(module: Module, book: &'a mut Book) -> FxHashSet<String> {
     let mut public_names = FxHashSet::default();
 
@@ -386,8 +397,12 @@ fn module_to_book<'a>(module: Module, book: &'a mut Book) -> FxHashSet<String> {
     public_names
 }
 
-
-fn unbound_variable(sender: Sender<Box<dyn Diagnostic>>, book: &Book, idents: &[Ident]) {
+async fn unbound_variable<Key, Evs>(
+    sender: Sender<Event<Key, Evs>>,
+    key: Key,
+    book: &Book,
+    idents: &[Ident],
+) {
     let mut similar_names = book
         .names
         .keys()
@@ -402,12 +417,12 @@ fn unbound_variable(sender: Sender<Box<dyn Diagnostic>>, book: &Book, idents: &[
         similar_names.iter().take(5).map(|x| x.1.clone()).collect(),
     ));
 
-    sender.send(err).unwrap();
+    sender.send(Event::Diagnostic(key, err)).await;
 }
 
-impl<Key> Session<Key, PathBuf>
+impl<Key, Evs> Session<Key, PathBuf, Evs>
 where
-    Key: ReusableIndex + Into<SyntaxCtxIndex> + Debug,
+    Key: ReusableIndex + Into<SyntaxCtxIndex> + Debug + From<SyntaxCtxIndex>,
 {
     pub fn get_file(&self, path: &Path) -> Result<File<PathBuf>, Vec<Box<dyn Diagnostic>>> {
         let canon = &fs::canonicalize(path).unwrap();
@@ -424,7 +439,7 @@ where
         }
     }
 
-    pub fn pre_compile_node(
+    pub async fn pre_compile_node(
         &mut self,
         key: &Key,
         path: &Path,
@@ -475,6 +490,8 @@ where
                 .paths
                 .insert(path.canonicalize().unwrap(), (*key, ident.clone()));
 
+            self.events.send(Event::Compiled(*key)).await;
+
             Ok(Outcome::Compiled)
         } else {
             Err(errs)
@@ -521,17 +538,22 @@ where
         self.database.paths.remove(path);
     }
 
-    pub fn compile_root(
-        &mut self,
-        parent_key: &Key,
-        path: &Path,
-        ident: &str,
-    ) -> Result<(), Vec<Box<dyn Diagnostic>>> {
+    pub async fn compile_root(&mut self, parent_key: &Key, path: &Path, ident: &str) {
         self.compile(
             parent_key,
             path,
             QualifiedIdent::new_static(ident, None, Range::ghost_range()),
         )
+        .await
+    }
+
+    pub async fn pre_compile_root(&mut self, parent_key: &Key, path: &Path, ident: &str) {
+        self.pre_compile(
+            parent_key,
+            path,
+            QualifiedIdent::new_static(ident, None, Range::ghost_range()),
+        )
+        .await
     }
 
     pub fn reconnect(&mut self, parent_key: Key) -> Option<()> {
@@ -554,15 +576,9 @@ where
         Some(())
     }
 
-    pub fn pre_compile(
-        &mut self,
-        parent_key: &Key,
-        path: &Path,
-        ident: QualifiedIdent,
-    ) -> Result<bool, Vec<Box<dyn Diagnostic>>> {
+    pub async fn pre_compile(&mut self, parent_key: &Key, path: &Path, ident: QualifiedIdent) {
         let mut visited = Vec::new();
         let mut queue = Vec::new();
-        let mut errs = Vec::new();
 
         let mut connect = Vec::new();
 
@@ -579,6 +595,7 @@ where
         }
 
         let mut recompiled = false;
+        let mut failed = false;
 
         while let Some((key, path, ident)) = queue.pop() {
             if visited.contains(&key) {
@@ -589,7 +606,7 @@ where
 
             let old_used_names: FxHashSet<_> = self.get_used_names(&key).unwrap_or_default();
 
-            match self.pre_compile_node(&key, &path, &ident) {
+            match self.pre_compile_node(&key, &path, &ident).await {
                 Ok(Outcome::StillValid) => (),
                 Ok(Outcome::Compiled) => {
                     recompiled = true;
@@ -625,13 +642,17 @@ where
                                     self.graph.remove_edge(*parent_key, key);
                                 }
                             }
-                            Err(err) => errs.push(err),
+                            Err(err) => {
+                                failed = true;
+                                self.events.send(Event::Diagnostic(key, err)).await;
+                            }
                         }
                     }
                 }
                 Err(new_errs) => {
                     for err in new_errs {
-                        errs.push(err);
+                        failed = true;
+                        self.events.send(Event::Diagnostic(key, err)).await;
                     }
                 }
             }
@@ -639,33 +660,15 @@ where
 
         // TODO: Reconnect
 
-        if errs.is_empty() {
+        if !failed {
             for conn in connect {
                 self.reconnect(conn);
             }
-            Ok(recompiled)
-        } else {
-            Err(errs)
         }
     }
 
-    pub fn compile(
-        &mut self,
-        parent_key: &Key,
-        path: &Path,
-        ident: QualifiedIdent,
-    ) -> Result<(), Vec<Box<dyn Diagnostic>>> {
-        let mut errs = Vec::new();
-
-        match self.pre_compile(parent_key, path, ident) {
-            Ok(recomp) if !recomp => {
-                return Ok(())
-            },
-            Err(err) => {
-                errs = err;
-            },
-            _ => ()
-        }
+    pub async fn compile(&mut self, parent_key: &Key, path: &Path, ident: QualifiedIdent) {
+        self.pre_compile(parent_key, path, ident).await;
 
         let mut book = Book::default();
 
@@ -690,29 +693,77 @@ where
                 .collect();
 
             if !res.is_empty() {
-                unbound_variable(tx.clone(), &book, &res);
+                let potential_key = res[0].range.ctx.into();
+                unbound_variable(self.events.clone(), potential_key, &book, &res).await;
             }
         }
 
         for unbound in unbound_names.values() {
-            unbound_variable(tx.clone(), &book, &unbound);
+            let potential_key = unbound[0].range.ctx.into();
+            unbound_variable(self.events.clone(), potential_key, &book, &unbound).await;
         }
 
-        for err in rx.try_iter() {
-            errs.push(err)
-        }
+        let errs = rx.try_iter().collect::<Vec<_>>();
 
-        if !errs.is_empty() {
-            Err(errs)
-        } else {
-            Ok(())
+        for err in errs {
+            self.events
+                .send(Event::Diagnostic(err.get_syntax_ctx().unwrap().into(), err))
+                .await;
         }
     }
 }
 
-impl FileCache for Session<Index, PathBuf> {
+impl<Evs> FileCache for Session<Index, PathBuf, Evs> {
     fn fetch(&self, ctx: SyntaxCtxIndex) -> Option<(PathBuf, &String)> {
         let module = self.database.files.get(&Index(ctx.0))?;
         Some((module.path.clone(), &module.source))
+    }
+}
+
+
+pub enum Event<Key, Other> {
+    Compiled(Key),
+    Invalidated(Key),
+    Removed(Key),
+    Diagnostic(Key, Box<dyn Diagnostic>),
+    Other(Other),
+}
+
+#[async_trait]
+pub trait CompilationServer<E: Sync + Send> {
+    async fn compiled_module(&mut self, key: Index) {
+        let _ = key;
+    }
+
+    async fn invalidated_module(&mut self, key: Index) {
+        let _ = key;
+    }
+    async fn removed_module(&mut self, key: Index) {
+        let _ = key;
+    }
+
+    async fn other_events(&mut self, evs: E)
+    where
+        E: 'async_trait,
+    {
+        let _ = evs;
+    }
+
+    async fn diagnostic(&mut self, key: Index, diagnostic: Box<dyn Diagnostic>) {
+        let _ = key;
+        let _ = diagnostic;
+    }
+
+    async fn receive(&mut self, receiver: &mut Receiver<Event<Index, E>>) {
+        println!("Receiving events");
+        while let Some(event) = receiver.recv().await {
+            match event {
+                Event::Compiled(key) => self.compiled_module(key).await,
+                Event::Invalidated(key) => self.removed_module(key).await,
+                Event::Removed(key) => self.invalidated_module(key).await,
+                Event::Diagnostic(key, diagnostic) => self.diagnostic(key, diagnostic).await,
+                Event::Other(evs) => self.other_events(evs).await,
+            }
+        }
     }
 }

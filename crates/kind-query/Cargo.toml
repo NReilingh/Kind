@@ -24,4 +24,8 @@ fxhash = "0.2.1"
 dashmap = "5.4.0"
 pathdiff = "0.2.1"
 petgraph = "*"
+
 indexmap = "*"
+
+tokio = { version = "*", features = ["rt", "sync", "macros", "rt-multi-thread"] }
+async-trait = "0.1.60"
