@@ -140,6 +140,20 @@ impl TopLevel {
     }
 }
 
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MetaKind {
+    Function,
+    TypeDef,
+    RecordDef,
+    Cons
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Meta {
+    pub docs: Vec<String>,
+    pub kind: MetaKind
+}
 /// A module is a collection of top level entries
 /// that contains syntatic sugars. In the future
 /// it will contain a HashMap to local renames.
@@ -147,6 +161,7 @@ impl TopLevel {
 pub struct Module {
     pub entries: Vec<TopLevel>,
     pub uses: FxHashMap<String, String>,
+    pub names: FxHashMap<String, Meta>
 }
 
 /// Metadata about entries, it's really useful when we

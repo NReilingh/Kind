@@ -19,7 +19,7 @@ use crate::{data::*, RenderConfig};
 type SortedMarkers = FxHashMap<SyntaxCtxIndex, Vec<Marker>>;
 
 #[derive(Debug, Clone)]
-struct Point {
+pub struct Point {
     pub line: usize,
     pub column: usize,
 }
@@ -38,7 +38,7 @@ fn count_width(str: &str) -> (usize, usize) {
     (UnicodeWidthStr::width(str), str.chars().filter(|x| *x == '\t').count())
 }
 
-fn group_markers(markers: &[Marker]) -> SortedMarkers {
+pub fn group_markers(markers: &[Marker]) -> SortedMarkers {
     let mut file_group = SortedMarkers::default();
     for marker in markers {
         let group = file_group
@@ -52,7 +52,7 @@ fn group_markers(markers: &[Marker]) -> SortedMarkers {
     file_group
 }
 
-fn get_code_line_guide(code: &str) -> Vec<usize> {
+pub fn get_code_line_guide(code: &str) -> Vec<usize> {
     let mut guide = Vec::new();
     let mut size = 0;
     for chr in code.chars() {
@@ -65,7 +65,7 @@ fn get_code_line_guide(code: &str) -> Vec<usize> {
     guide
 }
 
-fn find_in_line_guide(pos: Pos, guide: &Vec<usize>) -> Point {
+pub fn find_in_line_guide(pos: Pos, guide: &Vec<usize>) -> Point {
     for i in 0..guide.len() {
         if guide[i] > pos.index as usize {
             return Point {

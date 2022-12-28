@@ -308,6 +308,6 @@ impl<'a> Parser<'a> {
             self.send_dignostic(err);
         }
 
-        Module { entries, uses }
+        Module { entries, uses, names: Default::default() }
     }
 }

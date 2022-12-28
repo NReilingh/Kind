@@ -13,9 +13,10 @@ members = [
   "crates/kind-target-hvm",
   "crates/kind-derive",
   "crates/kind-tests",
+  "crates/kind-query",
+  "crates/kind-lsp",
   # "crates/kind-optimization",
   # "crates/kind-lint",
-  # "crates/kind-query",
   # "crates/kind-macros",
 ]
 
@@ -24,3 +25,5 @@ opt-level = 3
 
 [profile.bench.package.hvm]
 opt-level = 3
+
+CARGO_PROFILE_RELEASE_DEBUG=true

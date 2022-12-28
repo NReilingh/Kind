@@ -36,6 +36,13 @@ pub mod diagnostic;
 #[derive(PartialEq, Debug, Eq, Hash, PartialOrd, Ord, Copy, Clone, Default)]
 pub struct Index(usize);
 
+
+impl From<Index> for usize {
+    fn from(value: Index) -> Self {
+        value.0
+    }
+}
+
 impl Display for Index {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -87,7 +94,7 @@ pub struct File<URI> {
 }
 
 pub struct ModuleInterface {
-    module: concrete::Module,
+    pub module: concrete::Module,
     exposed: FxHashSet<Symbol>,
     ranges: FxHashMap<Symbol, Range>,
     using: FxHashMap<String, FxHashSet<QualifiedIdent>>,
@@ -103,9 +110,9 @@ pub enum Status {
 
 pub struct Node<T> {
     pub status: Status,
-    hash: u64,
-    interface: T,
-    diagnostics: Vec<QueryDiagnostic>,
+    pub interface: T,
+    pub diagnostics: Vec<Box<dyn Diagnostic>>,
+    pub controled: bool
 }
 
 impl Node<ModuleInterface> {
@@ -197,7 +204,7 @@ where
         }
     }
 
-    pub fn get_used_names(&mut self, key: &Key) -> Option<FxHashSet<String>> {
+    pub fn get_used_names(&self, key: &Key) -> Option<FxHashSet<String>> {
         let node = self.database.nodes.get(key)?;
         Some(node.get_used_names())
     }
@@ -208,8 +215,9 @@ where
         id
     }
 
-    pub fn set_file(&mut self, key: &Key, file: File<URI>) {
+    pub fn set_file(&mut self, key: &Key, file: File<URI>) -> &File<URI> {
         self.database.files.insert(*key, file);
+        self.database.files.get(key).unwrap()
     }
 
     pub fn set_interface(&mut self, key: &Key, module: ModuleInterface) {
@@ -217,11 +225,17 @@ where
             *key,
             Node {
                 status: Status::ToGraph,
-                hash: 0, // TODO: Calculate the hash
+                controled: false, // TODO: Calculate the hash
                 interface: module,
                 diagnostics: Default::default(),
             },
         );
+    }
+
+    pub fn set_controlled(&mut self, key: &Key) {
+        self.database.nodes.entry(
+            *key,
+        ).and_modify(|f| f.controled = true);
     }
 
     pub fn update_keys(
@@ -402,7 +416,7 @@ async fn unbound_variable<Key, Evs>(
     key: Key,
     book: &Book,
     idents: &[Ident],
-) {
+) -> Box<dyn Diagnostic> {
     let mut similar_names = book
         .names
         .keys()
@@ -417,7 +431,7 @@ async fn unbound_variable<Key, Evs>(
         similar_names.iter().take(5).map(|x| x.1.clone()).collect(),
     ));
 
-    sender.send(Event::Diagnostic(key, err)).await;
+    err
 }
 
 impl<Key, Evs> Session<Key, PathBuf, Evs>
@@ -453,13 +467,16 @@ where
 
         let (tx, rx) = mpsc::channel();
 
-        let file = self.get_file(path)?;
+        let file = if self.database.nodes.get(key).map(|x| x.controled).unwrap_or(false) {
+            self.database.files.get(key).unwrap()
+        } else {
+            let file = self.get_file(path)?;
+            self.set_file(key, file)
+        };
 
         let (mut module, _) = kind_parser::parse_book(tx.clone(), (*key).into(), &file.source);
         expand_uses(&mut module, tx.clone());
         expand_module(tx.clone(), &mut module);
-
-        self.set_file(key, file);
 
         let mut state = UnboundCollector::new(tx.clone(), false);
         state.visit_module(&mut module);
@@ -490,8 +507,6 @@ where
                 .paths
                 .insert(path.canonicalize().unwrap(), (*key, ident.clone()));
 
-            self.events.send(Event::Compiled(*key)).await;
-
             Ok(Outcome::Compiled)
         } else {
             Err(errs)
@@ -506,11 +521,8 @@ where
             Some(path) => {
                 let canon = path.canonicalize().unwrap();
                 if let Some((id, old_ident)) = self.database.paths.get(&canon) {
-                    if old_ident.get_root_symbol() == ident.get_root_symbol() {
-                        let status = self.database.nodes.get(id).unwrap().status;
-                        return Ok(Some((status, *id, canon)));
-                    }
-                    todo!("Here probably both nodes have the same path but different identifiers.")
+                    let status = self.database.nodes.get(id).unwrap().status;
+                    return Ok(Some((status, *id, canon)));
                 }
                 let id = self.new_node();
                 Ok(Some((Status::NotCompiled, id, canon)))
@@ -537,8 +549,18 @@ where
         self.graph.remove_node(*key);
         self.database.paths.remove(path);
     }
+    
+    pub fn set_diagnostic(&mut self, parent_key: &Key, errs: Vec<Box<dyn Diagnostic>>) {
+        let Some(mut node) = self.database.nodes.get_mut(parent_key) else {return};
+        node.diagnostics = errs;
+    }
 
-    pub async fn compile_root(&mut self, parent_key: &Key, path: &Path, ident: &str) {
+    pub fn add_diagnostic(&mut self, parent_key: &Key, errs: Box<dyn Diagnostic>) {
+        let Some(mut node) = self.database.nodes.get_mut(parent_key) else {return};
+        node.diagnostics.push(errs);
+    }
+
+    pub async fn compile_root(&mut self, parent_key: &Key, path: &Path, ident: &str) -> Book {
         self.compile(
             parent_key,
             path,
@@ -607,9 +629,12 @@ where
             let old_used_names: FxHashSet<_> = self.get_used_names(&key).unwrap_or_default();
 
             match self.pre_compile_node(&key, &path, &ident).await {
-                Ok(Outcome::StillValid) => (),
+                Ok(Outcome::StillValid) => {
+                    continue
+                },
                 Ok(Outcome::Compiled) => {
                     recompiled = true;
+                
                     connect.push(key);
                     let node = self.database.nodes.get(&key).unwrap();
                     let new_used_names: FxHashSet<_> = node.get_used_names();
@@ -644,18 +669,17 @@ where
                             }
                             Err(err) => {
                                 failed = true;
-                                self.events.send(Event::Diagnostic(key, err)).await;
+                                self.set_diagnostic(&key, vec![err]);
                             }
                         }
                     }
                 }
                 Err(new_errs) => {
-                    for err in new_errs {
-                        failed = true;
-                        self.events.send(Event::Diagnostic(key, err)).await;
-                    }
+                    self.set_diagnostic(&key, new_errs);
                 }
             }
+
+            self.events.send(Event::Compiled(key)).await;
         }
 
         // TODO: Reconnect
@@ -667,7 +691,7 @@ where
         }
     }
 
-    pub async fn compile(&mut self, parent_key: &Key, path: &Path, ident: QualifiedIdent) {
+    pub async fn compile(&mut self, parent_key: &Key, path: &Path, ident: QualifiedIdent) -> Book {
         self.pre_compile(parent_key, path, ident).await;
 
         let mut book = Book::default();
@@ -685,6 +709,8 @@ where
 
         let (unbound_names, unbound_tops) = unbound::get_book_unbound(tx.clone(), &mut book, true);
 
+        let mut modified: FxHashSet<Key> = FxHashSet::default();
+
         for unbound in unbound_tops.values() {
             let res: Vec<Ident> = unbound
                 .iter()
@@ -694,22 +720,31 @@ where
 
             if !res.is_empty() {
                 let potential_key = res[0].range.ctx.into();
-                unbound_variable(self.events.clone(), potential_key, &book, &res).await;
+                let err = unbound_variable(self.events.clone(), potential_key, &book, &res).await;
+                modified.insert(err.get_syntax_ctx().unwrap().into());
+                self.add_diagnostic(&potential_key, err);
             }
         }
 
         for unbound in unbound_names.values() {
             let potential_key = unbound[0].range.ctx.into();
-            unbound_variable(self.events.clone(), potential_key, &book, &unbound).await;
+            let err = unbound_variable(self.events.clone(), potential_key, &book, &unbound).await;
+            modified.insert(err.get_syntax_ctx().unwrap().into());
+            self.add_diagnostic(&potential_key, err);
         }
 
         let errs = rx.try_iter().collect::<Vec<_>>();
 
         for err in errs {
-            self.events
-                .send(Event::Diagnostic(err.get_syntax_ctx().unwrap().into(), err))
-                .await;
+            modified.insert(err.get_syntax_ctx().unwrap().into());
+            self.add_diagnostic(&err.get_syntax_ctx().unwrap().into(), err);
         }
+        
+        for key in modified {
+            self.events.send(Event::Compiled(key)).await;
+        }
+
+        book
     }
 }
 
@@ -731,6 +766,10 @@ pub enum Event<Key, Other> {
 
 #[async_trait]
 pub trait CompilationServer<E: Sync + Send> {
+
+    // TODO: Ugly and terrible code just to make the rust analyzer happy
+    // Idk if i should change it but TOWER_LSP does the exactly same thing
+
     async fn compiled_module(&mut self, key: Index) {
         let _ = key;
     }
@@ -755,7 +794,6 @@ pub trait CompilationServer<E: Sync + Send> {
     }
 
     async fn receive(&mut self, receiver: &mut Receiver<Event<Index, E>>) {
-        println!("Receiving events");
         while let Some(event) = receiver.recv().await {
             match event {
                 Event::Compiled(key) => self.compiled_module(key).await,

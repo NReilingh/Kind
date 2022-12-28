@@ -1,0 +1,16 @@
+[package]
+name = "kind-lsp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kind-query = { path = "../kind-query" }
+kind-report = { path = "../kind-report" }
+kind-tree = { path = "../kind-tree" }
+
+tower-lsp = "0.17.0"
+tokio = { version = "*", features = ["rt", "io-util", "io-std", "net", "sync", "macros", "rt-multi-thread"] }
+async-trait = "0.1.60"
+toml = "0.5.10"
